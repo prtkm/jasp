@@ -19,8 +19,9 @@ then check for ./.jasprc
 import os
 
 # default settings
-JASPRC = {'vasp.executable.serial':'/opt/kitchingroup/vasp-5.2.12/build/bin/vasp-vtst',
- 'vasp.executable.parallel':'/home-research/jkitchin/src/vasp/bin/vasp_openmpi_intel_mkl',
+JASPRC = {'scheduler':'PBS', #other option is 'SGE'
+          'vasp.executable.serial':'/opt/kitchingroup/vasp-5.2.12/build/bin/vasp-vtst',
+          'vasp.executable.parallel':'/home-research/jkitchin/src/vasp/bin/vasp_openmpi_intel_mkl',
           'mode':'queue', #other value is 'run'
           'queue.command':'qsub',
           'queue.options':'-joe',
