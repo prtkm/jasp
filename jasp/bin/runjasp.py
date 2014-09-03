@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 import os
 from jasp import *  # need for JASPRC
-import sys
-print sys.version
-
 
 # this command works for both serial and MPI
 serial_vasp = JASPRC['vasp.executable.serial']

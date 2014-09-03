@@ -364,7 +364,6 @@ def calculation_required(self, atoms, quantities):
                 print '1. ',list(self.input_params[key])
                 print '2. ',list(self.old_input_params[key])
                 print 'KPTS FAILED'
-
                 return True
             else:
                 continue
@@ -492,9 +491,10 @@ def run(self):
 
     # if you get here, a job is getting submitted
     script = '''#!/bin/bash
+#$ -q short
 cd {self.cwd}  # this is the current working directory
 cd {self.vaspdir}  # this is the vasp directory
-/afs/crc.nd.edu/user/p/pmehta1/jasp/jasp/bin/runjasp.py  > jaspout   # this is the vasp command
+/afs/crc.nd.edu/user/p/pmehta1/jasp/jasp/bin/runjasp.py   # this is the vasp command
 #end'''.format(**locals())
 
 
