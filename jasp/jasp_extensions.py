@@ -491,7 +491,6 @@ def run(self):
 
     # if you get here, a job is getting submitted
     script = '''#!/bin/bash
-#$ -q short
 cd {self.cwd}  # this is the current working directory
 cd {self.vaspdir}  # this is the vasp directory
 /afs/crc.nd.edu/user/p/pmehta1/jasp/jasp/bin/runjasp.py   # this is the vasp command
@@ -524,8 +523,8 @@ cd {self.vaspdir}  # this is the vasp directory
         cmdlist = ['{0}'.format(JASPRC['queue.command'])]
         cmdlist += [option for option in JASPRC['queue.options'].split()]
         cmdlist += ['-N', '{0}'.format(jobname),
-                    #'-l h_rt={0}'.format(JASPRC['queue.walltime']),
-                    '-pe mpi-8 {0}'.format(JASPRC['queue.nprocs']),
+                    '-q {0}'.format(JASPRC['queue.q']),
+                    '-pe {0} {1}'.format(JASPRC['queue.pe'], JASPRC['queue.nprocs']),
                     #'-l mem_free={0}'.format(JASPRC['queue.mem'])
                                          ]
         cmdlist += ['qscript']
