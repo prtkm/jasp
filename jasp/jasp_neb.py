@@ -95,6 +95,7 @@ def get_neb(self, npi=1):
             (self.input_params == self.old_input_params) and
             (self.dict_params == self.old_dict_params)):
         calc_required = True
+        
         print self.float_params == self.old_float_params
         print self.exp_params == self.old_exp_params
         print 'string: ',self.string_params == self.old_string_params
@@ -105,15 +106,15 @@ def get_neb(self, npi=1):
                                             self.int_params[key],
                                             self.old_int_params[key])
 
-        print self.bool_params == self.old_bool_params
-        print self.list_params == self.old_list_params
-        print 'input: ', self.input_params == self.old_input_params
-        print self.dict_params == self.old_dict_params
-        print self.input_params
-        print self.old_input_params
+        #print self.bool_params == self.old_bool_params
+        #print self.list_params == self.old_list_params
+        #print 'input: ', self.input_params == self.old_input_params
+        #print self.dict_params == self.old_dict_params
+        #print self.input_params
+        #print self.old_input_params
         log.debug('Calculation is required')
         log.debug(self.vaspdir)
-        import sys; sys.exit()
+        #import sys; sys.exit()
 
     if calc_required:
         '''
@@ -122,7 +123,7 @@ def get_neb(self, npi=1):
         write out the poscar for all the images. write out the kpoints and
         potcar.
         '''
-
+        print "We are here"
         if os.path.exists('jobid'):
             raise VaspQueued
 
@@ -145,33 +146,31 @@ def get_neb(self, npi=1):
                 # Determine the number of atoms of each atomic species
                 # sorted after atomic species
                 special_setups = []
-                symbols = {}
+                symbols = []
+                symbolcount = {}
                 if self.input_params['setups']:
                     for m in self.input_params['setups']:
                         try :
-                            #special_setup[self.input_params['setups'][m]] = int(m)
                             special_setups.append(int(m))
-                        except:
-                            #print 'setup ' + m + ' is a groups setup'
+                        except ValueError:
                             continue
-                    #print 'special_setups' , special_setups
 
                 for m,atom in enumerate(atoms):
                     symbol = atom.symbol
                     if m in special_setups:
                         pass
                     else:
-                        if not symbols.has_key(symbol):
-                            symbols[symbol] = 1
+                        if symbol not in symbols:
+                            symbols.append(symbol)
+                            symbolcount[symbol] = 1
                         else:
-                            symbols[symbol] += 1
-
+                            symbolcount[symbol] += 1
                 # Build the sorting list
                 self.sort = []
                 self.sort.extend(special_setups)
 
                 for symbol in symbols:
-                    for m,atom in enumerate(atoms):
+                    for m, atom in enumerate(atoms):
                         if m in special_setups:
                             pass
                         else:
@@ -186,9 +185,9 @@ def get_neb(self, npi=1):
                 # create a list of their paths.
                 self.symbol_count = []
                 for m in special_setups:
-                    self.symbol_count.append([atomtypes[m],1])
+                    self.symbol_count.append([atomtypes[m], 1])
                 for m in symbols:
-                    self.symbol_count.append([m,symbols[m]])
+                    self.symbol_count.append([m, symbolcount[m]])
                     # end copied initialization code
 
                 write_vasp('{0}/POSCAR'.format(image_dir),
@@ -215,9 +214,14 @@ def get_neb(self, npi=1):
         self.initialize(self.neb_images[0])
         self.write_potcar()
         self.write_incar(self.neb_images[0])
-
-        JASPRC['queue.nodes'] = npi*(self.neb_nimages)
-        log.debug('Running on %i nodes',JASPRC['queue.nodes'])
+        
+        if JASPRC['scheduler'].lower() == 'sge':
+            JASPRC['queue.nprocs'] = npi*(self.neb_nimages)
+            log.debug('Running on %i processors',JASPRC['queue.nprocs'])
+        elif JASPRC['scheduler'].lower() == 'pbs':
+            JASPRC['queue.nodes'] = npi*(self.neb_nimages)
+            log.debug('Running on %i nodes',JASPRC['queue.nodes'])
+            
         self.run() # this will raise VaspSubmitted
 
     #############################################
@@ -381,4 +385,64 @@ def read_neb_calculator():
     calc.neb_images = images
     calc.neb_nimages = len(images)-2
     calc.neb=True
+    return calc
+
+def neb_initialize(neb_images, kwargs):
+              
+    for a in neb_images:
+        log.debug(a.numbers)
+
+    calc = Vasp()
+
+    # how to get the initial and final energies?
+    initial = neb_images[0]
+    log.debug(initial.numbers)
+    calc0 = initial.get_calculator()
+
+    log.debug('Calculator cwd = %s',calc0.cwd)
+    log.debug('Calculator vaspdir = %s',calc0.vaspdir)
+
+    # we have to store the initial and final energies because
+    # otherwise they will not be available when reread the
+    # directory in another script, e.g. jaspsum. The only other
+    # option is to make the initial and final directories full
+    # vasp calculations.
+    CWD = os.getcwd()
+    try:
+    
+        os.chdir(os.path.join(calc0.cwd, calc0.vaspdir))
+        e0 = calc0.read_energy()[1]
+        calc.neb_initial_energy = e0
+    finally:
+        os.chdir(CWD)
+
+    final = neb_images[-1]
+    log.debug(final.numbers)
+    calc_final = final.get_calculator()
+    log.debug(calc_final.cwd)
+    log.debug(calc_final.vaspdir)
+    try:
+        os.chdir(os.path.join(calc_final.cwd, calc_final.vaspdir))
+        efinal = calc_final.read_energy()[1]
+        calc.neb_final_energy = efinal
+    finally:
+        os.chdir(CWD)
+
+    # make a Vasp object and set inputs to initial image
+    calc.int_params.update(calc0.int_params)
+    calc.float_params.update(calc0.float_params)
+    calc.exp_params.update(calc0.exp_params)
+    calc.string_params.update(calc0.string_params)
+    calc.bool_params.update(calc0.bool_params)
+    calc.list_params.update(calc0.list_params)
+    calc.dict_params.update(calc0.dict_params)
+    calc.input_params.update(calc0.input_params)
+    
+    calc.neb_kwargs = kwargs
+    # this is the vasp images tag. it does not include the endpoints
+    IMAGES = len(neb_images) - 2
+    calc.set(images=IMAGES)
+    calc.neb_images = neb_images
+    calc.neb_nimages = IMAGES
+    calc.neb = True
     return calc
