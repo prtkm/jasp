@@ -106,15 +106,8 @@ def get_neb(self, npi=1):
                                             self.int_params[key],
                                             self.old_int_params[key])
 
-        #print self.bool_params == self.old_bool_params
-        #print self.list_params == self.old_list_params
-        #print 'input: ', self.input_params == self.old_input_params
-        #print self.dict_params == self.old_dict_params
-        #print self.input_params
-        #print self.old_input_params
         log.debug('Calculation is required')
         log.debug(self.vaspdir)
-        #import sys; sys.exit()
 
     if calc_required:
         '''
@@ -123,7 +116,7 @@ def get_neb(self, npi=1):
         write out the poscar for all the images. write out the kpoints and
         potcar.
         '''
-        print "We are here"
+        
         if os.path.exists('jobid'):
             raise VaspQueued
 
