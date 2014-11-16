@@ -96,16 +96,6 @@ def get_neb(self, npi=1):
             (self.dict_params == self.old_dict_params)):
         calc_required = True
         
-        print self.float_params == self.old_float_params
-        print self.exp_params == self.old_exp_params
-        print 'string: ',self.string_params == self.old_string_params
-        print 'int: ',self.int_params == self.old_int_params
-        for key in self.int_params:
-            if self.int_params[key] != self.old_int_params[key]:
-                print '    {0}: {1} {2}'.format(key,
-                                            self.int_params[key],
-                                            self.old_int_params[key])
-
         log.debug('Calculation is required')
         log.debug(self.vaspdir)
 
