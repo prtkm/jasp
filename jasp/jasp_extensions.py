@@ -490,8 +490,8 @@ def run(self):
         #end
 
     # if you get here, a job is getting submitted
-    script = '''#!/bin/bash
-cd {self.cwd}  # this is the current working directory
+    script = '#!/bin/{0}\n'.format(JASPRC['queue.shell'])
+    script +='''cd {self.cwd}  # this is the current working directory
 cd {self.vaspdir}  # this is the vasp directory
 runjasp.py   # this is the vasp command
 #end'''.format(**locals())
