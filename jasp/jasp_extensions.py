@@ -493,7 +493,7 @@ def run(self):
     script = '''#!/bin/bash
 cd {self.cwd}  # this is the current working directory
 cd {self.vaspdir}  # this is the vasp directory
-/afs/crc.nd.edu/user/p/pmehta1/jasp/jasp/bin/runjasp.py   # this is the vasp command
+runjasp.py   # this is the vasp command
 #end'''.format(**locals())
 
 
