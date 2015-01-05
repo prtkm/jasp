@@ -30,28 +30,26 @@ with jasp('O-diffusion',
           images, energies = calc.get_neb()
 
 The spring tag triggers the setup of an NEB calculation for Jasp.
-
 '''
 
 import logging
 log = logging.getLogger('Jasp')
 
 def get_neb(self, npi=1):
-    '''
-    returns images, energies if available or runs the job
+    '''Returns images, energies if available or runs the job.
 
-    npi = nodes per image for running the calculations
+    npi = nodes per image for running the calculations. Default=1
     '''
 
-    # how do we know if we need to run jobs?
-    '''
-    if jobid exists that means it is or was queued
-
-    if no jobid, and no OUTCAR for each image, then calculation required.
-
-    It is also possible a keyword has changed, and that a calculation
-    is required.
-    '''
+    # how do we know if we need to run jobs?  if jobid exists that means
+    # it is or was queued
+    #
+    # if no jobid, and no OUTCAR for each image, then calculation
+    # required.
+    #
+    # It is also possible a keyword has changed, and that a calculation
+    # is required.
+    
     calc_required = False
 
     if self.job_in_queue():
@@ -251,8 +249,10 @@ def get_neb(self, npi=1):
 Vasp.get_neb = get_neb
 
 def plot_neb(self, show=True):
-    '''
-    retrieve the energies and atoms from the band
+    '''Return a list of the energies and atoms objects for each image in
+
+    the band.
+
     by default shows the plot figure
     '''
     import jasp
@@ -315,7 +315,9 @@ Vasp.plot_neb = plot_neb
 
 # this is a static method
 def read_neb_calculator():
-    ''' read calculator from working directory'''
+    '''Read calculator from the current working directory.
+
+    Static method that returns a :mod:`jasp.Jasp` calculator.'''
     log.debug('Entering read_neb_calculator in {0}'.format(os.getcwd()))
 
     calc = Vasp()
@@ -325,12 +327,12 @@ def read_neb_calculator():
 
     # set default functional
     if calc.string_params['gga'] is None:
-        calc.input_params['xc']='PBE'
+        calc.input_params['xc'] = 'PBE'
 
     images = []
-    log.debug('calc.int_params[images] = %i',calc.int_params['images'])
-    for i in range(calc.int_params['images']+2):
-        log.debug('reading neb calculator: 0%i',i)
+    log.debug('calc.int_params[images] = %i', calc.int_params['images'])
+    for i in range(calc.int_params['images'] + 2):
+        log.debug('reading neb calculator: 0%i', i)
         cwd = os.getcwd()
 
         os.chdir('0{0}'.format(i))
@@ -347,7 +349,7 @@ def read_neb_calculator():
         atoms = read(fname, format='vasp')
 
         f = open('ase-sort.dat')
-        sort, resort = [],[]
+        sort, resort = [], []
         for line in f:
             s,r = [int(x) for x in line.split()]
             sort.append(s)
@@ -361,12 +363,12 @@ def read_neb_calculator():
     f = open('00/energy')
     calc.neb_initial_energy = float(f.readline().strip())
     f.close()
-    f = open('0{0}/energy'.format(len(images)-1))
+    f = open('0{0}/energy'.format(len(images) - 1))
     calc.neb_final_energy = float(f.readline().strip())
     f.close()
 
     calc.neb_images = images
-    calc.neb_nimages = len(images)-2
+    calc.neb_nimages = len(images) - 2
     calc.neb=True
     return calc
 

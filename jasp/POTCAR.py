@@ -18,6 +18,7 @@ def get_ZVAL(potcar):
     return float(m.group(1))
 
 def get_ENMAX(potcar):
+    ''' Return ENMAX from the potcar file.'''
     with open(potcar) as f:
         for line in f:
             if 'ENMAX' in line:
@@ -25,6 +26,7 @@ def get_ENMAX(potcar):
                 return float(m.groupdict()['ENMAX'])
 
 def get_ENMIN(potcar):
+    ''' Return ENMIN from the potcar file.'''
     with open(potcar) as f:
         for line in f:
             if 'ENMIN' in line:
@@ -35,8 +37,11 @@ def get_ENMIN(potcar):
 def get_special_setups(potcar='POTCAR'):
     '''parse POTCAR file and find out which ones were used.
 
-    the vasp.read_potcar is terribly named and only reads ex from potcar file. It is not even clear that is correct since you can do non-self-consistent calculations.
-'''
+    the vasp.read_potcar is terribly named and only reads ex (the
+    exchange-correlation functional) from potcar file. It is not even
+    clear that is correct since you can do non-self-consistent
+    calculations.
+    '''
     potcars = []
     with open(potcar) as f:
         lines = f.readlines()
