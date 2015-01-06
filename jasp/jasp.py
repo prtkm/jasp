@@ -129,9 +129,6 @@ def Jasp(debug=None,
 
     '''
 
-    #self.keep_chgcar = keep_chgcar
-    #self.keep_wavecar = keep_wavecar
-
     if debug is not None:
         log.setLevel(debug)
 
@@ -215,7 +212,7 @@ def Jasp(debug=None,
         self = Vasp(restart, output_template, track_output)
         self.keep_chgcar = keep_chgcar
         self.keep_wavecar = keep_wavecar
-        
+
         self.read_incar()
 
         if self.int_params.get('images', None) is not None:
