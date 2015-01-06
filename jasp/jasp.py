@@ -210,9 +210,6 @@ def Jasp(debug=None,
         log.debug('job created, and in queue, but not running. tricky case')
 
         self = Vasp(restart, output_template, track_output)
-        self.keep_chgcar = keep_chgcar
-        self.keep_wavecar = keep_wavecar
-
         self.read_incar()
 
         if self.int_params.get('images', None) is not None:
@@ -299,6 +296,13 @@ def Jasp(debug=None,
                 calc = Vasp(restart=True)  # automatically loads results
             finally:
                 pass
+                
+        # We need to set these as the calculator has been reset
+        # We only want to delete the chgcar and wavecar if the
+        # calculation has finished
+        
+        calc.keep_chgcar = keep_chgcar
+        calc.keep_wavecar = keep_wavecar
 
         # now update the atoms object if it was a kwarg
         if atoms is not None and not hasattr(calc, 'neb'):
@@ -311,16 +315,17 @@ def Jasp(debug=None,
         if hasattr(calc, 'post_run_hooks'):
             for hook in calc.post_run_hooks:
                 hook(calc)
-    
-    if (not self.keep_chgcar
-        and os.path.exists('CHGCAR')):
-        os.unlink('CHGCAR')
 
-    if (not self.keep_wavecar
-        and os.path.exists('WAVECAR')):
-        os.unlink('WAVECAR')
+        # Delete chgcar and wavecar
+        if (not calc.keep_chgcar
+            and os.path.exists('CHGCAR')):
+            os.unlink('CHGCAR')
+
+        if (not calc.keep_wavecar
+            and os.path.exists('WAVECAR')):
+            os.unlink('WAVECAR')
     
-    # job done long ago, jobid deleted, no running, and the
+    # job done long ago, jobid deleted, not running, and the
     # output files all exist
     elif (not os.path.exists('jobid')
           and not os.path.exists('running')
@@ -331,7 +336,18 @@ def Jasp(debug=None,
                   'no running, and the output files all exist')
         if calculation_is_ok():
             calc = Vasp(restart=True)
+            
+            # Delete chgcar and wavecar if required
+            calc.keep_chgcar = keep_chgcar
+            calc.keep_wavecar = keep_wavecar
+            if (not calc.keep_chgcar
+                and os.path.exists('CHGCAR')):
+                os.unlink('CHGCAR')
 
+            if (not calc.keep_wavecar
+                and os.path.exists('WAVECAR')):
+                os.unlink('WAVECAR')
+            
         if atoms is not None:
             atoms.set_cell(calc.atoms.get_cell())
             atoms.set_positions(calc.atoms.get_positions())
@@ -360,6 +376,10 @@ def Jasp(debug=None,
     if ((not os.path.exists('METADATA'))
         and calc.int_params.get('images', None) is None):
         calc.create_metadata()
+
+    # Set these regardless of the state of the calculation
+    calc.keep_chgcar = keep_chgcar
+    calc.keep_wavecar = keep_wavecar
 
     return calc
 
