@@ -297,12 +297,6 @@ def Jasp(debug=None,
             finally:
                 pass
                 
-        # We need to set these as the calculator has been reset
-        # We only want to delete the chgcar and wavecar if the
-        # calculation has finished
-        
-        calc.keep_chgcar = keep_chgcar
-        calc.keep_wavecar = keep_wavecar
 
         # now update the atoms object if it was a kwarg
         if atoms is not None and not hasattr(calc, 'neb'):
@@ -317,11 +311,11 @@ def Jasp(debug=None,
                 hook(calc)
 
         # Delete chgcar and wavecar
-        if (not calc.keep_chgcar
+        if (not keep_chgcar
             and os.path.exists('CHGCAR')):
             os.unlink('CHGCAR')
 
-        if (not calc.keep_wavecar
+        if (not keep_wavecar
             and os.path.exists('WAVECAR')):
             os.unlink('WAVECAR')
     
@@ -336,17 +330,6 @@ def Jasp(debug=None,
                   'no running, and the output files all exist')
         if calculation_is_ok():
             calc = Vasp(restart=True)
-            
-            # Delete chgcar and wavecar if required
-            calc.keep_chgcar = keep_chgcar
-            calc.keep_wavecar = keep_wavecar
-            if (not calc.keep_chgcar
-                and os.path.exists('CHGCAR')):
-                os.unlink('CHGCAR')
-
-            if (not calc.keep_wavecar
-                and os.path.exists('WAVECAR')):
-                os.unlink('WAVECAR')
             
         if atoms is not None:
             atoms.set_cell(calc.atoms.get_cell())
