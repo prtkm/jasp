@@ -86,11 +86,11 @@ def calculation_is_ok(jobid=None):
 
     with open('OUTCAR') as f:
         lines = f.readlines()
-        if 'Voluntary context switches' not in lines[-1]:
-            output += ['Last 20 lines of OUTCAR:\n']
-            output += lines[-20:]
-            output += ['=' * 66]
-            raise VaspNotFinished(''.join(output))
+    if 'Voluntary context switches' not in lines[-1]:
+        output += ['Last 20 lines of OUTCAR:\n']
+        output += lines[-20:]
+        output += ['=' * 66]
+        raise VaspNotFinished(''.join(output))
     return True
 
 # ###################################################################
@@ -129,8 +129,8 @@ def Jasp(debug=None,
 
     '''
 
-    self.keep_chgcar = keep_chgcar
-    self.keep_wavecar = keep_wavecar
+    #self.keep_chgcar = keep_chgcar
+    #self.keep_wavecar = keep_wavecar
 
     if debug is not None:
         log.setLevel(debug)
@@ -213,6 +213,9 @@ def Jasp(debug=None,
         log.debug('job created, and in queue, but not running. tricky case')
 
         self = Vasp(restart, output_template, track_output)
+        self.keep_chgcar = keep_chgcar
+        self.keep_wavecar = keep_wavecar
+        
         self.read_incar()
 
         if self.int_params.get('images', None) is not None:
@@ -282,8 +285,8 @@ def Jasp(debug=None,
         with open('jobid') as f:
             jobid = f.readline().split('.')[0]
 
-            if calculation_is_ok(jobid):
-                pass
+        if calculation_is_ok(jobid):
+            pass
 
         # delete the jobid file, since it is done
         os.unlink('jobid')
@@ -311,7 +314,7 @@ def Jasp(debug=None,
         if hasattr(calc, 'post_run_hooks'):
             for hook in calc.post_run_hooks:
                 hook(calc)
-
+    
     if (not self.keep_chgcar
         and os.path.exists('CHGCAR')):
         os.unlink('CHGCAR')
@@ -319,7 +322,7 @@ def Jasp(debug=None,
     if (not self.keep_wavecar
         and os.path.exists('WAVECAR')):
         os.unlink('WAVECAR')
-
+    
     # job done long ago, jobid deleted, no running, and the
     # output files all exist
     elif (not os.path.exists('jobid')
