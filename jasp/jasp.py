@@ -78,19 +78,20 @@ def calculation_is_ok(jobid=None):
     with open('CONTCAR') as f:
         content = f.read()
 
-    if not len(content) > 0:
-        os.unlink('CONTCAR')
-        os.unlink('jobid')
-        raise VaspNotFinished('CONTCAR appears empty. It has been '
-                              'deleted. Please run your script again')
+        if not len(content) > 0:
+            os.unlink('CONTCAR')
+            os.unlink('jobid')
+            raise VaspNotFinished('CONTCAR appears empty. It has been '
+                                  'deleted. Please run your script again')
 
     with open('OUTCAR') as f:
         lines = f.readlines()
-    if 'Voluntary context switches' not in lines[-1]:
-        output += ['Last 20 lines of OUTCAR:\n']
-        output += lines[-20:]
-        output += ['=' * 66]
-        raise VaspNotFinished(''.join(output))
+        if 'Voluntary context switches' not in lines[-1]:
+            output += ['Last 20 lines of OUTCAR:\n']
+            output += lines[-20:]
+            output += ['=' * 66]
+            raise VaspNotFinished(''.join(output))
+        
     return True
 
 # ###################################################################
