@@ -65,7 +65,7 @@ def get_vibrational_modes(self,
     while True:
         line = f.readline()
         if line.startswith(' Eigenvectors and eigenvalues'
-                           'of the dynamical matrix'):
+                           ' of the dynamical matrix'):
             break
     f.readline()   # skip ------
     f.readline()   # skip two blank lines
@@ -95,7 +95,7 @@ def get_vibrational_modes(self,
 
         if massweighted:
             # construct M
-            numbers = [a.get_atomic_number() for a in atoms]
+            numbers = [a.get('number') for a in atoms]
             M = []
             for i in range(len(atoms)):
                 for j in range(3):
@@ -164,7 +164,7 @@ def get_vibrational_frequencies(self):
     while True:
         line = f.readline()
         if line.startswith(' Eigenvectors and eigenvalues'
-                           'of the dynamical matrix'):
+                           ' of the dynamical matrix'):
             break
     f.readline()  # skip ------
     f.readline()  # skip two blank lines

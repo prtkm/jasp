@@ -51,7 +51,7 @@ def get_neb(self, npi=1):
     # is required.
     
     calc_required = False
-
+    
     if self.job_in_queue():
         from jasp import VaspQueued
         raise VaspQueued
@@ -93,7 +93,6 @@ def get_neb(self, npi=1):
             (self.input_params == self.old_input_params) and
             (self.dict_params == self.old_dict_params)):
         calc_required = True
-        
         log.debug('Calculation is required')
         log.debug(self.vaspdir)
 
@@ -116,7 +115,9 @@ def get_neb(self, npi=1):
                 # create if needed.
                 os.makedirs(image_dir)
 
-                # this code is copied from initialize to get the sorting correct.
+                # this code is copied from
+                # ase.calculators.vasp.initialize to get the sorting
+                # correct.
                 p = self.input_params
 
                 self.all_symbols = atoms.get_chemical_symbols()
@@ -131,12 +132,12 @@ def get_neb(self, npi=1):
                 symbolcount = {}
                 if self.input_params['setups']:
                     for m in self.input_params['setups']:
-                        try :
+                        try:
                             special_setups.append(int(m))
                         except ValueError:
                             continue
 
-                for m,atom in enumerate(atoms):
+                for m, atom in enumerate(atoms):
                     symbol = atom.symbol
                     if m in special_setups:
                         pass
@@ -146,6 +147,7 @@ def get_neb(self, npi=1):
                             symbolcount[symbol] = 1
                         else:
                             symbolcount[symbol] += 1
+
                 # Build the sorting list
                 self.sort = []
                 self.sort.extend(special_setups)
@@ -169,7 +171,6 @@ def get_neb(self, npi=1):
                     self.symbol_count.append([atomtypes[m], 1])
                 for m in symbols:
                     self.symbol_count.append([m, symbolcount[m]])
-                    # end copied initialization code
 
                 write_vasp('{0}/POSCAR'.format(image_dir),
                            self.atoms_sorted,
@@ -197,10 +198,10 @@ def get_neb(self, npi=1):
         self.write_incar(self.neb_images[0])
         
         if JASPRC['scheduler'].lower() == 'sge':
-            JASPRC['queue.nprocs'] = npi*(self.neb_nimages)
+            JASPRC['queue.nprocs'] = npi * self.neb_nimages
             log.debug('Running on %i processors',JASPRC['queue.nprocs'])
         elif JASPRC['scheduler'].lower() == 'pbs':
-            JASPRC['queue.nodes'] = npi*(self.neb_nimages)
+            JASPRC['queue.nodes'] = npi * self.neb_nimages
             log.debug('Running on %i nodes',JASPRC['queue.nodes'])
             
         self.run() # this will raise VaspSubmitted
@@ -208,10 +209,10 @@ def get_neb(self, npi=1):
     #############################################
     # now we are just retrieving results
     images = [self.neb_images[0]]
-    energies = [self.neb_initial_energy] #this is a tricky point. unless
-                                     #the calc stores an absolute
-                                     #path, it may be tricky to call
-                                     #get_potential energy
+    energies = [self.neb_initial_energy] # this is a tricky point. unless
+                                         # the calc stores an absolute
+                                         # path, it may be tricky to call
+                                         # get_potential energy
 
     log.debug('self.neb_nimages = %i',self.neb_nimages)
     for i in range(1,self.neb_nimages+1):
@@ -373,7 +374,8 @@ def read_neb_calculator():
     return calc
 
 def neb_initialize(neb_images, kwargs):
-              
+    '''Creates necessary files for an NEB calculation'''
+
     for a in neb_images:
         log.debug(a.numbers)
 

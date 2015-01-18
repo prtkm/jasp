@@ -75,6 +75,11 @@ def calculation_is_ok(jobid=None):
                     output += ['=' * 66,
                                '\n']
 
+    with open('INCAR') as f:
+        if 'SPRING' in f.read():
+            print 'Apparently an NEB calculation. Check it your self.'
+            return True
+                        
     with open('CONTCAR') as f:
         content = f.read()
 
@@ -94,11 +99,51 @@ def calculation_is_ok(jobid=None):
         
     return True
 
+
+def vasp_changed_bands(calc):
+    '''Check here if VASP changed nbands.'''
+    log.debug('Checking if vasp changed nbands')
+
+    if not os.path.exists('OUTCAR'):
+        return
+    
+    with open('OUTCAR') as f:
+        lines = f.readlines()
+        for i, line in enumerate(lines):
+            if 'The number of bands has been changed from the values supplied' in line:
+
+                s = lines[i + 5]  # this is where the new bands are found
+                nbands_cur = calc.nbands
+                nbands_ori, nbands_new = [int(x) for x in
+                                          re.search(r"I found NBANDS\s+ =\s+([0-9]*).*=\s+([0-9]*)", s).groups()]
+                log.debug('Calculator nbands = {0}.\n'
+                          'VASP found {1} nbands.\n'
+                          'Changed to {2} nbands.'.format(nbands_cur,
+                                                          nbands_ori,
+                                                          nbands_new))
+
+                calc.set(nbands=nbands_new)
+                calc.write_incar(calc.get_atoms())
+
+                log.debug('calc.kwargs: {0}'.format(calc.kwargs))
+                if calc.kwargs.get('nbands', None) != nbands_new:
+                    raise VaspWarning('''The number of bands was changed by VASP. This happens sometimes when you run in parallel. It causes problems with jasp. I have already updated your INCAR. You need to change the number of bands in your script to match what VASP used to proceed.\n\n ''' + '\n'.join(lines[i - 9: i + 8]))
+
+                    
 # ###################################################################
 # Jasp function - returns a Vasp calculator
 # ###################################################################
 Vasp.results = {}  # for storing data used in ase.db
 Vasp.name = 'jasp'
+
+# I thought of setting defaults like this. But, I realized it would
+# break reading old calculations, where some of these are not set. I
+# am leaving this in for now.
+default_parameters = {'xc': 'PBE',
+                      'lwave': False,
+                      'lcharg': False,
+                      'prec': 'Normal',
+                      'kpts': (1, 1, 1)}
 
 
 def Jasp(debug=None,
@@ -106,8 +151,6 @@ def Jasp(debug=None,
          output_template='vasp',
          track_output=False,
          atoms=None,
-         keep_chgcar=False,
-         keep_wavecar=False,
          **kwargs):
     '''wrapper function to create a Vasp calculator. The only purpose
     of this function is to enable atoms as a keyword argument, and to
@@ -117,12 +160,6 @@ def Jasp(debug=None,
     By default we delete these large files. We do not need them very
     often, so the default is to delete them, and only keep them when
     we know we want them.
-
-    :param bool keep_chgcar: If set to True, keep CHGCAR, else delete
-    it.
-
-    :param bool keep_wavecar: If set to True, keep WAVECAR, else
-    delete it.
 
     **kwargs is the same as ase.calculators.vasp.
 
@@ -134,7 +171,7 @@ def Jasp(debug=None,
         log.setLevel(debug)
 
     log.debug('Jasp called in %s', os.getcwd())
-
+    log.debug('kwargs = %s', kwargs)
     # special initialization NEB case
     if 'spring' in kwargs:
         log.debug('Entering NEB setup')
@@ -143,7 +180,7 @@ def Jasp(debug=None,
             calc.set(**kwargs)
         except:
             calc = neb_initialize(atoms, kwargs)
-        
+
     # empty vasp dir. start from scratch
     elif (not os.path.exists('INCAR')):
         calc = Vasp(restart, output_template, track_output)
@@ -202,8 +239,7 @@ def Jasp(debug=None,
 
     # job created, and in queue, but not running
     elif (os.path.exists('jobid')
-          and job_in_queue(None)
-          and not os.path.exists('running')):
+          and job_in_queue(None)):
         '''this case is slightly tricky because you cannot restart if
         there is no contcar or outcar. here is a modified version of
         the restart_load function that avoids this problem.
@@ -253,8 +289,7 @@ def Jasp(debug=None,
 
     # job created, and in queue, and running
     elif (os.path.exists('jobid')
-          and job_in_queue(None)
-          and os.path.exists('running')):
+          and job_in_queue(None)):
         log.debug('job created, and in queue, and running')
         calc = Vasp(restart, output_template, track_output)
         calc.read_incar()
@@ -272,8 +307,7 @@ def Jasp(debug=None,
     # job is created, not in queue, not running. finished and
     # first time we are looking at it
     elif (os.path.exists('jobid')
-          and not job_in_queue(None)
-          and not os.path.exists('running')):
+          and not job_in_queue(None)):
         log.debug('job is created, not in queue, not running.'
                   'finished and first time we are looking at it')
 
@@ -288,6 +322,7 @@ def Jasp(debug=None,
 
         calc = Vasp(restart, output_template, track_output)
         calc.read_incar()
+         
 
         if calc.int_params.get('images', None) is not None:
             log.debug('reading neb calculator')
@@ -310,20 +345,11 @@ def Jasp(debug=None,
         if hasattr(calc, 'post_run_hooks'):
             for hook in calc.post_run_hooks:
                 hook(calc)
+            
+    # job done long ago, jobid deleted, no running, and the
 
-        # Delete chgcar and wavecar
-        if (not keep_chgcar
-            and os.path.exists('CHGCAR')):
-            os.unlink('CHGCAR')
-
-        if (not keep_wavecar
-            and os.path.exists('WAVECAR')):
-            os.unlink('WAVECAR')
-    
-    # job done long ago, jobid deleted, not running, and the
     # output files all exist
     elif (not os.path.exists('jobid')
-          and not os.path.exists('running')
           and os.path.exists('CONTCAR')
           and os.path.exists('OUTCAR')
           and os.path.exists('vasprun.xml')):
@@ -353,17 +379,29 @@ def Jasp(debug=None,
     calc.old_bool_params = calc.bool_params.copy()
     calc.old_list_params = calc.list_params.copy()
     calc.old_dict_params = calc.dict_params.copy()
-
+    log.debug(calc.string_params)
+    calc.kwargs = kwargs
     calc.set(**kwargs)
 
     # create a METADATA file if it does not exist and we are not an NEB.
     if ((not os.path.exists('METADATA'))
-        and calc.int_params.get('images', None) is None):
-        calc.create_metadata()
+         and calc.int_params.get('images', None) is None):
+         calc.create_metadata()
 
-    # Set these regardless of the state of the calculation
-    calc.keep_chgcar = keep_chgcar
-    calc.keep_wavecar = keep_wavecar
+    # Check if beef is used
+    if calc.string_params.get('gga', None) == 'BF':
+        calc.set(luse_vdw=True,
+                 zab_vdw=-1.8867,
+                 lbeefens=True)
+
+    # check for luse_vdw, and make link to the required kernel if
+    # using vdw.
+    if calc.bool_params.get('luse_vdw', False):
+        if not os.path.exists('vdw_kernel.bindat'):
+            os.symlink(JASPRC['vdw_kernel.bindat'], 'vdw_kernel.bindat')
+        
+    # Finally, check if VASP changed the bands
+    vasp_changed_bands(calc)
 
     return calc
 
