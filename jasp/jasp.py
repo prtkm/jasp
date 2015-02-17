@@ -151,7 +151,7 @@ def Jasp(debug=None,
          output_template='vasp',
          track_output=False,
          atoms=None,
-         swallow=False,
+         supress_err=False,
          **kwargs):
     '''wrapper function to create a Vasp calculator. The only purpose
     of this function is to enable atoms as a keyword argument, and to
@@ -467,7 +467,12 @@ class jasp:
 
         except VaspNotFinished:
             if self.__exit__(*sys.exc_info()):
-                pass
+                # Exit with return True skips the calc.attribute functions entirely
+                # Not ideal if looping and appending properties to lists
+                # Rather return None to catch AttributeError later and append np.nan
+                log.warning('Supressed VaspNotFinished in {0}'.format(self.cwd))
+                self.supress_err=False
+                return None
             else:
                 raise
             
