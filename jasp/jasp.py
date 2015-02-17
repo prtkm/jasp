@@ -151,6 +151,7 @@ def Jasp(debug=None,
          output_template='vasp',
          track_output=False,
          atoms=None,
+         swallow=False,
          **kwargs):
     '''wrapper function to create a Vasp calculator. The only purpose
     of this function is to enable atoms as a keyword argument, and to
@@ -417,7 +418,7 @@ class jasp:
     exceptions in the with statement.
     '''
 
-    def __init__(self, vaspdir, **kwargs):
+    def __init__(self, vaspdir, supress_err=False, **kwargs):
         '''
         vaspdir: the directory to run vasp in
 
@@ -428,7 +429,8 @@ class jasp:
         self.vaspdir = os.path.expanduser(vaspdir)
 
         self.kwargs = kwargs  # this does not include the vaspdir variable
-
+        self.supress_err = supress_err
+        
     def __enter__(self):
         '''
         on enter, make sure directory exists, create it if necessary,
@@ -456,19 +458,27 @@ class jasp:
         os.chdir(self.vaspdir)
 
         # and get the new calculator
-        calc = Jasp(**self.kwargs)
-        calc.vaspdir = self.vaspdir   # vasp directory
-        calc.cwd = self.cwd   # directory we came from
-        return calc
+        try:
+            calc = Jasp(**self.kwargs)
+            calc.vaspdir = self.vaspdir   # vasp directory
+            calc.cwd = self.cwd   # directory we came from
+            self.supress_err = False
+            return calc
+
+        except VaspNotFinished:
+            if self.__exit__(*sys.exc_info()):
+                pass
+            else:
+                raise
+            
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         '''
         on exit, change back to the original directory.
         '''
         os.chdir(self.cwd)
-        return False  # allows exception to propogate out
+        return self.supress_err
 
-        
 def isavaspdir(path):
     '''Return bool if the current working directory is a VASP directory.
 
