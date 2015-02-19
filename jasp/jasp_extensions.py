@@ -325,6 +325,10 @@ def calculation_required(self, atoms, quantities):
     '''Monkey-patch original function because (4,4,4) != [4,4,4] which
     makes the test on input_params fail'''
 
+    # Check  if errors exist and raise them if found
+    # Error attributes are only set if calc has run atleast once
+    # Couldn't figure out sensible defaults for calcs starting for the first time
+
     try:
         if not self.finished:
             raise VaspNotFinished(''.join(self.err_message))

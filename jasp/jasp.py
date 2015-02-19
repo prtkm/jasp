@@ -102,8 +102,17 @@ def calculation_is_ok(jobid=None):
     return True
 
 def calculation_is_finished(jobid=None):
-    '''1. Checks if CONTCAR exists
+    '''
+    Replaces calculation_is_ok to not raise errors in __enter__
+
+    It checks:
+    1. If CONTCAR exists
     2. OUTCAR has 'Voluntary context switches' at the end.
+    
+    returns:
+    1. contcar_empty(bool)
+    2. calculation is finished (bool)
+    3. an appropriate error message (str)
     '''
     
     # find job output file
@@ -379,13 +388,9 @@ def Jasp(debug=None,
         if calc.int_params.get('images', None) is not None:
             log.debug('reading neb calculator')
             calc = read_neb_calculator()
-        elif finished:
-            try:
-                calc = Vasp(restart=True)  # automatically loads results
-            finally:
-                pass
-                
-
+        else:
+            calc = Vasp(restart=True)  # automatically loads results
+                            
         # now update the atoms object if it was a kwarg
         if atoms is not None and not hasattr(calc, 'neb'):
             atoms.set_cell(calc.atoms.get_cell())
