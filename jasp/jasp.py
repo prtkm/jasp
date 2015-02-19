@@ -61,6 +61,8 @@ def calculation_is_ok(jobid=None):
     That means:
     1. There is a CONTCAR with contents
     2. The OUTCAR has 'Voluntary context switches' at the end.
+    
+    Prateek: probably deprecated.
     '''
     # find job output file
     output = ['\n']
@@ -103,24 +105,23 @@ def calculation_is_finished(jobid=None):
     '''1. Checks if CONTCAR exists
     2. OUTCAR has 'Voluntary context switches' at the end.
     '''
-
     
     # find job output file
-    output = ['\n']
+    err_message = ['\n']
     if jobid is not None:
         for f in os.listdir('.'):
             if 'o{0}'.format(jobid) in f:
                 with open(f) as outputfile:
-                    output = ['joboutput file: {0}'.format(jobid),
+                    err_message = ['joboutput file: {0}'.format(jobid),
                               '\n' + '=' * 66 + '\n',
                               '{0}:\n'.format(f)]
-                    output += outputfile.readlines()
-                    output += ['=' * 66,
+                    err_message += outputfile.readlines()
+                    err_message += ['=' * 66,
                                '\n']
     with open('INCAR') as f:
         if 'SPRING' in f.read():
             print 'Apparently an NEB calculation. Check it your self.'
-            return True, True, output
+            return True, True, err_message
 
     with open('CONTCAR') as f:
         content = f.read()
@@ -133,14 +134,14 @@ def calculation_is_finished(jobid=None):
     with open('OUTCAR') as f:
         lines = f.readlines()
         if 'Voluntary context switches' not in lines[-1]:
-            output += ['Last 20 lines of OUTCAR:\n']
-            output += lines[-20:]
-            output += ['=' * 66]
+            err_message += ['Last 20 lines of OUTCAR:\n']
+            err_message += lines[-20:]
+            err_message += ['=' * 66]
             finished=False
         else:
             finished=True
 
-    return contcar_empty, finished, output
+    return contcar_empty, finished, err_message
 
     
 def vasp_changed_bands(calc):
@@ -148,10 +149,11 @@ def vasp_changed_bands(calc):
     log.debug('Checking if vasp changed nbands')
 
     if not os.path.exists('OUTCAR'):
-        return 
+        return False, None
 
     vasp_warning = False
-    
+    warning_message = None
+
     with open('OUTCAR') as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
@@ -173,7 +175,8 @@ def vasp_changed_bands(calc):
                 log.debug('calc.kwargs: {0}'.format(calc.kwargs))
                 if calc.kwargs.get('nbands', None) != nbands_new:
                     vasp_warning = True
-    return vasp_warning
+                    warning_message = lines[i - 9: i + 8]
+    return vasp_warning, warning_message
     
 
                     
@@ -361,7 +364,7 @@ def Jasp(debug=None,
         with open('jobid') as f:
             jobid = f.readline().split('.')[0]
 
-        contcar_empty, finished, output = calculation_is_finished(jobid)
+        contcar_empty, finished, err_message = calculation_is_finished(jobid)
             
         # delete the jobid file, since it is done
         os.unlink('jobid')
@@ -371,7 +374,7 @@ def Jasp(debug=None,
         
         calc.contcar_empty = contcar_empty
         calc.finished = finished
-        calc.output = output
+        calc.err_message = err_message
         
         if calc.int_params.get('images', None) is not None:
             log.debug('reading neb calculator')
@@ -405,13 +408,13 @@ def Jasp(debug=None,
         log.debug('job was at least started, jobid deleted,'
                   'no running, and the output files all exist')
 
-        contcar_empty, finished, output = calculation_is_finished()
+        contcar_empty, finished, err_message = calculation_is_finished()
         
         calc = Vasp(restart=True)
 
         calc.finished = finished
         calc.contcar_empty = contcar_empty
-        calc.output = output
+        calc.err_message = err_message
 
         if atoms is not None:
             atoms.set_cell(calc.atoms.get_cell())
@@ -456,7 +459,8 @@ def Jasp(debug=None,
             os.symlink(JASPRC['vdw_kernel.bindat'], 'vdw_kernel.bindat')
         
     # Finally, check if VASP changed the bands
-    calc.vasp_warning = vasp_changed_bands(calc)
+    
+    calc.vasp_warning, calc.warning_message = vasp_changed_bands(calc)
     return calc
 
 
