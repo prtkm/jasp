@@ -333,7 +333,7 @@ def calculation_required(self, atoms, quantities):
                               'deleted. Please run your script again')
 
     if self.vasp_warning:
-        raise VaspWarning('''The number of bands was changed by VASP. This happens sometimes when you run in parallel. It causes problems with jasp. I have already updated your INCAR. You need to change the number of bands in your script to match what VASP used to proceed.\n\n ''' + '\n'.join(self.warning_message)
+        raise VaspWarning('''The number of bands was changed by VASP. This happens sometimes when you run in parallel. It causes problems with jasp. I have already updated your INCAR. You need to change the number of bands in your script to match what VASP used to proceed.\n\n ''' + '\n'.join(self.warning_message))
 
     if self.positions is None:
         log.debug('self.positions is None')
