@@ -234,7 +234,7 @@ def Jasp(debug=None,
     # empty vasp dir. start from scratch
     elif (not os.path.exists('INCAR')):
         calc = Vasp(restart, output_template, track_output)
-
+        
         if atoms is not None:
             atoms.calc = calc
         log.debug('empty vasp dir. start from scratch')
