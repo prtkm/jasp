@@ -112,6 +112,8 @@ If atom-projected dos are included they are in the form:
         stress = atoms.get_stress()
     except NotImplementedError:
         stress = None
+    except AssertionError:
+        stress = None
 
     if stress is not None:
         d['data']['stress'] = atoms.get_stress().tolist()
@@ -273,7 +275,7 @@ Vasp.xml = property(calc_to_xml)
 
 def vasp_repr(self):
     '''Convert a calculator to python code.
-    
+
     >>> print repr(calc)
 
     Missing functionality: constraints, magnetic moments

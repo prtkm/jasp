@@ -79,15 +79,16 @@ def calculation_is_ok(jobid=None):
         if 'SPRING' in f.read():
             print 'Apparently an NEB calculation. Check it your self.'
             return True
-                        
+
     with open('CONTCAR') as f:
         content = f.read()
 
-        if not len(content) > 0:
-            os.unlink('CONTCAR')
+    if not len(content) > 0:
+        os.unlink('CONTCAR')
+        if os.path.exists('jobid'):
             os.unlink('jobid')
-            raise VaspNotFinished('CONTCAR appears empty. It has been '
-                                  'deleted. Please run your script again')
+        raise VaspNotFinished('CONTCAR appears empty. It has been '
+                              'deleted. Please run your script again')
 
     with open('OUTCAR') as f:
         lines = f.readlines()
@@ -96,7 +97,7 @@ def calculation_is_ok(jobid=None):
             output += lines[-20:]
             output += ['=' * 66]
             raise VaspNotFinished(''.join(output))
-        
+
     return True
 
 
@@ -106,7 +107,7 @@ def vasp_changed_bands(calc):
 
     if not os.path.exists('OUTCAR'):
         return
-    
+
     with open('OUTCAR') as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
@@ -129,7 +130,7 @@ def vasp_changed_bands(calc):
                 if calc.kwargs.get('nbands', None) != nbands_new:
                     raise VaspWarning('''The number of bands was changed by VASP. This happens sometimes when you run in parallel. It causes problems with jasp. I have already updated your INCAR. You need to change the number of bands in your script to match what VASP used to proceed.\n\n ''' + '\n'.join(lines[i - 9: i + 8]))
 
-                    
+
 # ###################################################################
 # Jasp function - returns a Vasp calculator
 # ###################################################################
@@ -248,6 +249,7 @@ def Jasp(debug=None,
         log.debug('job created, and in queue, but not running. tricky case')
 
         self = Vasp(restart, output_template, track_output)
+
         self.read_incar()
 
         if self.int_params.get('images', None) is not None:
@@ -323,7 +325,7 @@ def Jasp(debug=None,
 
         calc = Vasp(restart, output_template, track_output)
         calc.read_incar()
-         
+
 
         if calc.int_params.get('images', None) is not None:
             log.debug('reading neb calculator')
@@ -346,7 +348,7 @@ def Jasp(debug=None,
         if hasattr(calc, 'post_run_hooks'):
             for hook in calc.post_run_hooks:
                 hook(calc)
-            
+
     # job done long ago, jobid deleted, no running, and the
 
     # output files all exist
@@ -357,8 +359,12 @@ def Jasp(debug=None,
         log.debug('job was at least started, jobid deleted,'
                   'no running, and the output files all exist')
         if calculation_is_ok():
+            log.debug('calculation seems ok.')
             calc = Vasp(restart=True)
-            
+
+            calc.read_incar()
+            log.debug('list params = {}', calc.list_params)
+
         if atoms is not None:
             atoms.set_cell(calc.atoms.get_cell())
             atoms.set_positions(calc.atoms.get_positions())
@@ -372,6 +378,7 @@ def Jasp(debug=None,
 
     # save initial params to check for changes later
     log.debug('saving initial parameters')
+    log.debug('list_params = {}', calc.list_params)
     calc.old_float_params = calc.float_params.copy()
     calc.old_exp_params = calc.exp_params.copy()
     calc.old_string_params = calc.string_params.copy()
@@ -380,7 +387,7 @@ def Jasp(debug=None,
     calc.old_bool_params = calc.bool_params.copy()
     calc.old_list_params = calc.list_params.copy()
     calc.old_dict_params = calc.dict_params.copy()
-    log.debug(calc.string_params)
+    log.debug('String_params = {}', calc.string_params)
     calc.kwargs = kwargs
     calc.set(**kwargs)
 
@@ -400,11 +407,41 @@ def Jasp(debug=None,
     if calc.bool_params.get('luse_vdw', False):
         if not os.path.exists('vdw_kernel.bindat'):
             os.symlink(JASPRC['vdw_kernel.bindat'], 'vdw_kernel.bindat')
-        
+
     # Finally, check if VASP changed the bands
     vasp_changed_bands(calc)
 
     return calc
+
+class cd:
+    '''Context manager for changing directories.
+
+    On entering, store initial location, change to the desired directory,
+    creating it if needed.  On exit, change back to the original directory.
+
+    Example:
+    with cd('path/to/a/calculation'):
+        calc = Jasp(args)
+        calc.get_potential energy()
+    '''
+
+    def __init__(self, working_directory):
+        self.origin = os.getcwd()
+        self.wd = working_directory
+
+
+    def __enter__(self):
+        # make directory if it doesn't already exist
+        if not os.path.isdir(self.wd):
+            os.makedirs(self.wd)
+
+        # now change to new working dir
+        os.chdir(self.wd)
+
+
+    def __exit__(self, *args):
+        os.chdir(self.origin)
+        return False # allows body exceptions to propagate out.
 
 
 class jasp:
@@ -448,7 +485,7 @@ class jasp:
             try:
                 calc.do something
             except (VaspException):
-                do somthing.
+                do something.
         '''
         # make directory if it doesn't already exist
         if not os.path.isdir(self.vaspdir):
@@ -462,28 +499,19 @@ class jasp:
             calc = Jasp(**self.kwargs)
             calc.vaspdir = self.vaspdir   # vasp directory
             calc.cwd = self.cwd   # directory we came from
-            self.supress_err = False
             return calc
+        except:
+            self.__exit__()
+            raise
 
-        except VaspNotFinished:
-            if self.__exit__(*sys.exc_info()):
-                # Exit with return True skips the calc.attribute functions entirely
-                # Not ideal if looping and appending properties to lists
-                # Rather return None to catch AttributeError later and append np.nan
-                log.warning('Supressed VaspNotFinished in {0}'.format(self.cwd))
-                self.supress_err=False
-                return None
-            else:
-                raise
-            
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, *args):
         '''
         on exit, change back to the original directory.
         '''
         os.chdir(self.cwd)
-        return self.supress_err
+        return False  # allows exception to propagate out
 
+    
 def isavaspdir(path):
     '''Return bool if the current working directory is a VASP directory.
 
