@@ -4,6 +4,7 @@ from jasp.jasprc import JASPRC
 
 # this command works for both serial and MPI
 serial_vasp = JASPRC['vasp.executable.serial']
+
 parallel_vasp = JASPRC['vasp.executable.parallel']
 
 if 'PBS_NODEFILE' in os.environ:
