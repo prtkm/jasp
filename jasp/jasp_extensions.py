@@ -428,7 +428,7 @@ def calculation_required(self, atoms, quantities):
 
     if self.converged is None:
         self.converged = self.read_convergence()
-
+        
     if not self.converged:
         return True
 
