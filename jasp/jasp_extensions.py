@@ -1174,3 +1174,15 @@ def get_orbital_occupations(self):
     return np.array(occupations)
 
 Vasp.get_orbital_occupations = get_orbital_occupations
+
+def read_number_of_steps(self):
+    nsteps = None
+    for line in open('OUTCAR'):
+        # find the last iteration number
+        if line.find('- Iteration') != -1:
+            nsteps = int(line.split('(')[0].split()[-1].strip())
+    return nsteps
+
+def get_number_of_steps(self):
+    self.update(self.atoms)
+    return self.nsteps
