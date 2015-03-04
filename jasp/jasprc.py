@@ -14,6 +14,7 @@ queue.jobname = None
 
 check for $HOME/.jasprc
 then check for ./.jasprc
+finally check /afs/crc.nd.edu/user/w/wschnei1/CBE547/software/jasprc
 
 Note that the environment variables VASP_SERIAL and VASP_PARALLEL can
 also be used to identify the vasp executables used by runjasp.py.
@@ -61,7 +62,7 @@ def read_configuration(fname):
 
 # these are the possible paths to config files, in order of increasing
 # priority
-config_files = [os.path.join(os.environ['HOME'], '.jasprc'),
+config_files = ['/afs/crc.nd.edu/user/w/wschnei1/CBE547/software/jasprc', os.path.join(os.environ['HOME'], '.jasprc'),
                 '.jasprc']
 
 for cf in config_files:
