@@ -1186,3 +1186,5 @@ def read_number_of_steps(self):
 def get_number_of_steps(self):
     self.update(self.atoms)
     return self.nsteps
+
+Vasp.get_number_of_steps = get_number_of_steps
