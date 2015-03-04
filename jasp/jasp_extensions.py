@@ -1175,9 +1175,6 @@ def get_orbital_occupations(self):
 
 Vasp.get_orbital_occupations = get_orbital_occupations
 
-def read_number_of_steps(self):
-
-
 def get_number_of_steps(self):
     nsteps = None
     for line in open('OUTCAR'):

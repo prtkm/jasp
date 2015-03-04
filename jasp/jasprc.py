@@ -17,7 +17,6 @@ then check for ./.jasprc
 
 Note that the environment variables VASP_SERIAL and VASP_PARALLEL can
 also be used to identify the vasp executables used by runjasp.py.
-
 '''
 import os
 
