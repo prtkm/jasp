@@ -26,7 +26,7 @@ JASPRC = {'scheduler':'PBS', #other option is 'SGE'
           'vasp.executable.serial':
           '/opt/kitchingroup/vasp-5.3.5/bin/vasp-vtst-serial-beef',
           'vasp.executable.parallel':
-          '/opt/kitchingroup/vasp-5.3.5/bin/vasp-vtst-parallel-beef',
+          '/opt/kitchingroup/vasp-5.3.5/bin/vasp-vtst-parallel-beef-vaspsol',
           'mode': 'queue',  # other value is 'run'
           'queue.command': 'qsub',
           'queue.options': '-joe',
@@ -36,7 +36,8 @@ JASPRC = {'scheduler':'PBS', #other option is 'SGE'
           'queue.mem': '2GB',
           'queue.jobname': 'None',
           'multiprocessing.cores_per_process': 'None',
-          'vdw_kernel.bindat': '/opt/kitchingroup/vasp-5.3.5/vdw_kernel.bindat'
+          'vdw_kernel.bindat': '/opt/kitchingroup/vasp-5.3.5/vdw_kernel.bindat',
+          'restart_unconverged': True
           }
 
 

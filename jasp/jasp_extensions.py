@@ -413,6 +413,10 @@ def calculation_required(self, atoms, quantities):
         self.converged = self.read_convergence()
 
     if not self.converged:
+        if not JASPRC['restart_unconverged']:
+            raise VaspNotConverged("This calculation did not converge."
+                                   " Set JASPRC['restart_unconverged'] ="
+                                   " True to restart")
         return True
 
     return False
@@ -828,6 +832,9 @@ def checkerr_vasp(self):
                      'failed',
                      'non-integer']
 
+    # Check if VASP changed the bands
+    vasp_changed_bands(calc)
+
     errors = []
     if os.path.exists('OUTCAR'):
         f = open('OUTCAR')
@@ -842,9 +849,10 @@ def checkerr_vasp(self):
         if not converged:
             errors.append(('Converged', converged))
 
-        # Then if ibrion > 0, check whether ionic relaxation condition
-        # been fulfilled
-        if self.int_params['ibrion'] > 0:
+        # Then if ibrion > 0, check whether ionic relaxation condition been
+        # fulfilled, but we do not check ibrion >3 because those are vibrational
+        # type calculations.
+        if self.int_params['ibrion'] in [1, 2, 3]:
             if not self.read_relaxed():
                 errors.append(('Ions/cell Converged', converged))
 
@@ -1118,7 +1126,7 @@ Vasp.get_energy_components = get_energy_components
 
 
 def get_beefens(self, n=-1):
-    '''Get the BEEFens 2000 ensemble energies from the OUTCAR.  
+    '''Get the BEEFens 2000 ensemble energies from the OUTCAR.
 
     This only works with Vasp 5.3.5 compiled with libbeef.
 
@@ -1137,7 +1145,7 @@ def get_beefens(self, n=-1):
     with open('OUTCAR') as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
-            if 'BEEFens' in line:                
+            if 'BEEFens' in line:
                 nsamples = int(re.search('(\d+)', line).groups()[0])
                 beefens.append([float(x) for x in lines[i + 1: i + nsamples]])
     return np.array(beefens[n])
@@ -1150,7 +1158,7 @@ def get_orbital_occupations(self):
     [[s, p, d tot]] for each atom.
 
     You probably need to have used LORBIT=11 for this function to
-    work. 
+    work.
     '''
 
     # this finds the last entry of occupations. Sometimes, this is printed multiple times in the OUTCAR.
@@ -1175,7 +1183,8 @@ def get_orbital_occupations(self):
 
 Vasp.get_orbital_occupations = get_orbital_occupations
 
-def get_number_of_steps(self):
+def get_number_of_ionic_steps(self):
+    "Returns number of ionic steps from the OUTCAR."
     nsteps = None
     for line in open('OUTCAR'):
         # find the last iteration number
@@ -1183,4 +1192,5 @@ def get_number_of_steps(self):
             nsteps = int(line.split('(')[0].split()[-1].strip())
     return nsteps
 
-Vasp.get_number_of_steps = get_number_of_steps
+Vasp.get_number_of_ionic_steps = get_number_of_ionic_steps
+
