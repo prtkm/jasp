@@ -15,7 +15,7 @@ def get_ZVAL(potcar):
     # First check if it is a .Z type file
     if potcar.endswith('.Z'):
         cmdlist = ['zcat', potcar]
-        p = Popen(cmdlist, stdin=PIPE, stdout=PIPE, stderr=PIPE,)
+        p = Popen(cmdlist, stdin=PIPE, stdout=PIPE, stderr=PIPE)
         out, err = p.communicate()
         if out == '' or err != '':
             raise Exception('Cannot read POTCAR.Z:\n\n{0}'.format(err))
@@ -29,8 +29,9 @@ def get_ZVAL(potcar):
     for line in lines:
         if 'ZVAL' in line:
             m = re.search('ZVAL   =\s*([0-9]*\.?[0-9]*)', line)
+            return float(m.group(1))
+    return
 
-    return float(m.group(1))
 
 def get_ENMAX(potcar):
     ''' Return ENMAX from the potcar file.'''
