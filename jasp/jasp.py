@@ -297,7 +297,59 @@ def Jasp(debug=None,
             compatible_atoms_p(calc.get_atoms(), atoms)
             atoms.calc = calc
         calc.vasp_running = True
+    # job went through a couple of iteratures, produced an updated CONTCAR
+    # but did not finish for whatever reason. We want to restart this
+    # calculation but from the CONTCAR
+    elif (os.path.exists('jobid')
+          and not job_in_queue(None)
+          and not os.path.exists('OUTCAR')
+          and os.path.exists('CONTCAR')):
 
+        self = Vasp(restart, output_template, track_output)
+        self.read_incar()
+
+        import ase.io
+        # Try to read sorting file
+        if os.path.isfile('ase-sort.dat'):
+            self.sort = []
+            self.resort = []
+            file = open('ase-sort.dat', 'r')
+            lines = file.readlines()
+            file.close()
+            for line in lines:
+                data = line.split()
+                self.sort.append(int(data[0]))
+                self.resort.append(int(data[1]))
+            patoms = ase.io.read('POSCAR', format='vasp')[self.resort]
+            new_atoms = ase.io.read('CONTCAR', format='vasp')
+        else:
+            log.debug('you are in %s', os.getcwd())
+            patoms = ase.io.read('POSCAR', format='vasp')
+            new_atoms = ase.io.read('CONTCAR', format='vasp')
+            self.sort = range(len(atoms))
+            self.resort = range(len(atoms))
+
+        new_pos = new_atoms[self.resort].positions
+        new_cell = new_atoms.cell
+
+        if atoms is not None:
+            atoms.positions = new_pos
+            atoms.cell = new_cell
+            self.atoms = atoms
+            atoms.calc = self
+        else:
+            patoms.positions = new_pos
+            patoms.cell = new_cell
+            self.atoms = patoms.copy()            
+
+        self.read_kpoints()
+        self.read_potcar()
+
+        self.old_input_params = self.input_params.copy()
+        self.converged = False
+
+        calc = self
+        
 # ** job is created, not in queue, not running. finished and first time we are looking at it
     elif (os.path.exists('jobid')
           and not job_in_queue(None)):
