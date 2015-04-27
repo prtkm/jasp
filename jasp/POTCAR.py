@@ -8,7 +8,6 @@ from subprocess import Popen, PIPE
 def get_ZVAL(potcar):
     '''
     return the ZVAL for a potcar file.
-
     parse this line:
        POMASS =  106.420; ZVAL   =   10.000    mass and valenz
     '''
