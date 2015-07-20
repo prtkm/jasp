@@ -65,12 +65,11 @@ def calculation_is_ok(jobid=None):
     '''
     # find job output file
     output = ['\n']
-    
+    output += ['Vasp calculation from \n {0}\n'.format(os.getcwd())]    
     if jobid is not None:
         for f in os.listdir('.'):
             if 'o{0}'.format(jobid) in f:
                 with open(f) as outputfile:
-                    output = ['Vasp calculation from \n {0}\n'.format(os.getcwd())]
                     output += ['joboutput file: {0}'.format(jobid),
                               '\n' + '=' * 66 + '\n',
                               '{0}:\n'.format(f)]
@@ -95,18 +94,21 @@ def calculation_is_ok(jobid=None):
 
     with open('OUTCAR') as f:
         lines = f.readlines()
-        if 'Voluntary context switches' not in lines[-1]:
+
+    if 'Voluntary context switches' not in lines[-1]:
+        try:
             if 'ZBRENT: fatal error in bracketing' in output[-5]:
                 message = ['Zbrent Error in: \n {0} \n'.format(os.getcwd()),
                            'OUTCAR has been deleted.\n', 
-                          'Please run your script again to restart from CONTCAR']
+                           'Please run your script again to restart from CONTCAR']
                 os.unlink('OUTCAR')
                 raise VaspZbrentError(''.join(message))
-            else:
-                output += ['Last 20 lines of OUTCAR:\n']
-                output += lines[-20:]
-                output += ['=' * 66]
-                raise VaspNotFinished(''.join(output))
+        except IndexError:
+            pass            
+        output += ['Last 20 lines of OUTCAR:\n']
+        output += lines[-20:]
+        output += ['=' * 66]
+        raise VaspNotFinished(''.join(output))
 
     return True
 
@@ -406,7 +408,7 @@ def Jasp(debug=None,
             for hook in calc.post_run_hooks:
                 hook(calc)
 
-# ** job done long ago, jobid deleted, no running, and the output files all exist
+# ** job done long ago, jobid deleted, not running, and the output files all exist
     elif (not os.path.exists('jobid')
           and os.path.exists('CONTCAR')
           and os.path.exists('OUTCAR')

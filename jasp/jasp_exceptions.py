@@ -24,6 +24,12 @@ class VaspSubmitted(Exception):
 class VaspRunning(Exception):
     pass
 
+class VaspZbrentError(Exception):
+    def __init__(self, message=''):
+        self.message = message
+
+    def __str__(self):
+        return self.message
 
 class VaspNotFinished(Exception):
     def __init__(self, message=''):
