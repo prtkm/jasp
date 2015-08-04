@@ -531,6 +531,7 @@ def run(self):
 
     # if you get here, a job is getting submitted
     script = '#!/bin/{0}\n'.format(JASPRC['queue.shell'])
+    script += 'module load {0}\n'.format(JASPRC['module'])
     script +='''cd {self.cwd}  # this is the current working directory
 cd {self.vaspdir}  # this is the vasp directory
 runjasp.py   # this is the vasp command
@@ -552,21 +553,22 @@ runjasp.py   # this is the vasp command
                     '-l mem={0}'.format(JASPRC['queue.mem'])]
 
     elif JASPRC['scheduler'] == 'SGE':
-        jobname = (self.vaspdir).replace('/','|') # SGE does not allow '/' in job names. Maybe use the uuid?
+        jobname = (self.vaspdir).replace('/','|') # SGE does not allow '/' in job names
         log.debug('{0} will be the jobname.'.format(jobname))        
         f = open('qscript','w')
         f.write(script)
         f.close()
-        log.debug('-l nodes={0}:ppn={1}'.format(JASPRC['queue.nodes'],
-                                                     JASPRC['queue.ppn']))
+        log.debug('-pe {0} {1}'.format(JASPRC['queue.pe'],
+                                       JASPRC['queue.nprocs']))
+        log.debug('-q {0}'.format(JASPRC['queue.q']))
 
         cmdlist = ['{0}'.format(JASPRC['queue.command'])]
         cmdlist += [option for option in JASPRC['queue.options'].split()]
         cmdlist += ['-N', '{0}'.format(jobname),
                     '-q {0}'.format(JASPRC['queue.q']),
-                    '-pe {0} {1}'.format(JASPRC['queue.pe'], JASPRC['queue.nprocs']),
+                    '-pe {0} {1}'.format(JASPRC['queue.pe'], JASPRC['queue.nprocs'])
                     #'-l mem_free={0}'.format(JASPRC['queue.mem'])
-                                         ]
+                     ]
         cmdlist += ['qscript']
        
     log.debug('{0}'.format(' '.join(cmdlist)))
@@ -587,7 +589,6 @@ runjasp.py   # this is the vasp command
     f = open('jobid', 'w')
     f.write(jobid)
     f.close()
-
     raise VaspSubmitted(out)
 
 Vasp.run = run
