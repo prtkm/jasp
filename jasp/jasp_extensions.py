@@ -1364,6 +1364,7 @@ def get_required_memory(self):
 
 Vasp.get_required_memory = get_required_memory
 
+
 def chgsum(self):
     '''
     Uses the chgsum.pl utility to sum over the AECCAR0 and AECCAR2 files
@@ -1375,12 +1376,13 @@ def chgsum(self):
         raise Exception('Cannot perform chgsum:\n\n{0}'.format(err))
 
 Vasp.chgsum = chgsum
-    
+
+
 def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
 
     '''
     Performs bader analysis for a calculation
-    
+
     Follows defaults unless full shell command is specified
 
     Does not overwrite existing files if overwrite=False
@@ -1392,7 +1394,7 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
 
     if 'ACF.dat' in os.listdir('./') and not overwrite:
         return
-    
+
     if cmd is None:
         if ref:
             self.chgsum()
@@ -1403,7 +1405,7 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
         cmdlist = cmd.split()
     elif type(cmd) is list:
         cmdlist = cmd
-        
+
     p = Popen(cmdlist, stdin=PIPE, stdout=PIPE, stderr=PIPE)
     out, err = p.communicate()
     if out == '' or err != '':
@@ -1413,4 +1415,61 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
 
 Vasp.bader = bader
 
+implemented_properties = ['energy', 'forces', 'stress', 'dipole',
+                          'charges', 'magmom', 'magmoms']
 
+Vasp.implemented_properties = implemented_properties
+
+
+def get_property(self, name, atoms=None, allow_calculation=False):
+    if name not in self.implemented_properties:
+        raise NotImplementedError
+
+    if atoms is None:
+        atoms = self.atoms
+        system_changes = []
+    else:
+        system_changes = self.check_state(atoms)
+        if system_changes:
+            # self.reset()
+            # Vasp does not have a reset. Silently continue here...
+            pass
+
+    if name not in self.results:
+        return None
+        # if not allow_calculation:
+        #    return None
+        # We don't want to calculate things here...
+        # try:
+        #    self.calculate(atoms, [name], system_changes)
+        # except Exception:
+        #    self.reset()
+        #    raise
+
+    if name == 'magmom' and 'magmom' not in self.results:
+        return 0.0
+
+    if name == 'magmoms' and 'magmoms' not in self.results:
+        return np.zeros(len(atoms))
+
+    result = self.results[name]
+    if isinstance(result, np.ndarray):
+        result = result.copy()
+    return result
+
+Vasp.get_property = get_property
+
+
+def attach_results(self):
+    '''
+    Attaches values of the main properties to
+    self.results
+    '''
+
+    atoms = self.get_atoms()
+    results = {}
+    results['energy'] = atoms.get_potential_energy()
+    results['forces'] = atoms.get_forces()
+    self.results = results
+
+Vasp.attach_results = attach_results
