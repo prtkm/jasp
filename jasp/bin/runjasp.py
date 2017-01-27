@@ -39,7 +39,6 @@ elif 'PE_HOSTFILE' in os.environ:
     NPROCS = int(os.environ['NSLOTS'])
     NODES = int(os.environ['NHOSTS'])
 
-   
     if NPROCS == 1:
         # no question. running in serial.        
         exitcode = os.system(serial_vasp)
@@ -51,7 +50,7 @@ elif 'PE_HOSTFILE' in os.environ:
             # than one node, and you must specify in JASPRC to use it        
             parcmd = 'mpirun -np %i %s' % (NPROCS, parallel_vasp)
             exitcode = os.system(parcmd)
-            
+
         else:
             # we need to run an MPI job on cores_per_process
             if JASPRC['multiprocessing.cores_per_process'] == 1:                
@@ -61,7 +60,7 @@ elif 'PE_HOSTFILE' in os.environ:
 
                 parcmd = 'mpirun -np %i %s' % (NPROCS, parallel_vasp)
                 exitcode = os.system(parcmd)
-                
+
 else:
     # probably running at cmd line, in serial.
     exitcode = os.system(serial_vasp)

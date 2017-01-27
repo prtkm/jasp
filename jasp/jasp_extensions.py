@@ -570,13 +570,13 @@ runjasp.py   # this is the vasp command
                     #'-l mem_free={0}'.format(JASPRC['queue.mem'])
                      ]
         cmdlist += ['qscript']
-       
+
     log.debug('{0}'.format(' '.join(cmdlist)))
     p = Popen(cmdlist,
               stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
     log.debug(script)
-        
+
     out, err = p.communicate(script)
 
     if out == '' or err != '':
@@ -1393,14 +1393,19 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
     '''
 
     if 'ACF.dat' in os.listdir('./') and not overwrite:
+        self._get_calculated_charges()
         return
 
     if cmd is None:
         if ref:
             self.chgsum()
-            cmdlist = ['bader', 'CHGCAR', '-ref', 'CHGCAR_sum']
+            cmdlist = ['bader',
+                       'CHGCAR',
+                       '-ref',
+                       'CHGCAR_sum']
         else:
-            cmdlist = ['bader', 'CHGCAR']
+            cmdlist = ['bader',
+                       'CHGCAR']
     elif type(cmd) is str:
         cmdlist = cmd.split()
     elif type(cmd) is list:
@@ -1413,63 +1418,214 @@ def bader(self, cmd=None, ref=False, verbose=False, overwrite=False):
     elif verbose:
         print('Bader completed for {0}'.format(self.vaspdir))
 
+    # Now store calculated charges
+    self._get_calculated_charges()
+
 Vasp.bader = bader
 
-implemented_properties = ['energy', 'forces', 'stress', 'dipole',
-                          'charges', 'magmom', 'magmoms']
 
-Vasp.implemented_properties = implemented_properties
+def _get_calculated_charges(self,
+                            atoms=None,
+                            fileobj='ACF.dat',
+                            displacement=1e-4):
 
+    """Calculate the charges from the fileobj.
+    This is a modified version of the attach_charges function in
+    ase.io.bader to work better with VASP.
+    Does not require the atom positions to be in Bohr and references
+    the charge to the ZVAL in the POTCAR
+    """
 
-def get_property(self, name, atoms=None, allow_calculation=False):
-    if name not in self.implemented_properties:
-        raise NotImplementedError
+    if isinstance(fileobj, str):
+        try:
+            fileobj = open(fileobj)
+            f_open = True
+        except(IOError):
+            return None
 
     if atoms is None:
-        atoms = self.atoms
-        system_changes = []
-    else:
-        system_changes = self.check_state(atoms)
-        if system_changes:
-            # self.reset()
-            # Vasp does not have a reset. Silently continue here...
+        atoms = self.get_atoms()
+
+    # Get the sorting and resorting lists
+    sort = self.sort
+    resort = self.resort
+
+    # First get a dictionary of ZVALS from the pseudopotentials
+    LOP = self.get_pseudopotentials()
+    ppp = os.environ['VASP_PP_PATH']
+
+    zval = {}
+    for sym, ppath, hash in LOP:
+        fullpath = ppp + ppath
+        z = get_ZVAL(fullpath)
+        zval[sym] = z
+
+    # Get sorted symbols and positions according to POSCAR and ACF.dat
+    symbols = np.array(atoms.get_chemical_symbols())[sort]
+    positions = atoms.get_positions()[sort]
+
+    charges = []
+    sep = '---------------'
+    i = 0  # Counter for the lines
+    k = 0  # Counter of sep
+    assume6columns = False
+    for line in fileobj:
+        if line[0] == '\n':  # check if there is an empty line in the
+            i -= 1           # head of ACF.dat file
+        if i == 0:
+            headings = line
+            if 'BADER' in headings.split():
+                j = headings.split().index('BADER')
+            elif 'CHARGE' in headings.split():
+                j = headings.split().index('CHARGE')
+            else:
+                print('Can\'t find keyword "BADER" or "CHARGE".' \
+                      + ' Assuming the ACF.dat file has 6 columns.')
+                j = 4
+                assume6columns = True
+        if sep in line:  # Stop at last seperator line
+            if k == 1:
+                break
+            k += 1
+        if not i > 1:
             pass
+        else:
+            words = line.split()
+            if assume6columns is True:
+                if len(words) != 6:
+                    raise IOError('Number of columns in ACF file incorrect!\n'
+                                  'Check that Bader program version >= 0.25')
 
-    if name not in self.results:
+            sym = symbols[int(words[0]) - 1]
+            charges.append(zval[sym] - float(words[j]))
+
+            if displacement is not None:
+                # check if the atom positions match
+                xyz = np.array([float(w) for w in words[1:4]])
+                assert np.linalg.norm(positions[int(words[0]) - 1] - xyz) < displacement
+        i += 1
+
+    if f_open:
+        fileobj.close()
+
+    # Now attach the resorted charges to the atom
+    charges = np.array(charges)[resort]
+    self._calculated_charges = charges
+
+Vasp._get_calculated_charges = _get_calculated_charges
+
+
+def get_charges(self, atoms=None):
+    '''
+    Returns a list of cached charges from a previous
+    call to bader(). Useful for storing the charges to
+    a database outside the context manager.
+    '''
+
+    if atoms is None:
+        atoms = self.get_atoms()
+
+    if hasattr(self, '_calculated_charges'):
+        return self._calculated_charges
+    else:
         return None
-        # if not allow_calculation:
-        #    return None
-        # We don't want to calculate things here...
-        # try:
-        #    self.calculate(atoms, [name], system_changes)
-        # except Exception:
-        #    self.reset()
-        #    raise
 
-    if name == 'magmom' and 'magmom' not in self.results:
-        return 0.0
+Vasp.get_charges = get_charges
 
-    if name == 'magmoms' and 'magmoms' not in self.results:
-        return np.zeros(len(atoms))
 
-    result = self.results[name]
-    if isinstance(result, np.ndarray):
-        result = result.copy()
-    return result
+def get_property(self, name, atoms=None, allow_calculation=True):
+    """A function meant to mimic the get_property() function
+    already implemented for non-VASP calculators in ASE.
+    This function is required for proper usage of the ASE database
+    the way it is currently written.
+    """
+
+    if atoms is None:
+        atoms = self.get_atoms()
+
+    if name == 'energy':
+        return atoms.get_potential_energy()
+
+    elif name == 'forces':
+        return atoms.get_forces()
+
+    elif name == 'stress':
+        return atoms.get_stress()
+
+    elif name == 'dipole':
+        return atoms.get_dipole_moment()
+
+    elif name == 'magmom' and hasattr(self, 'magnetic_moment'):
+        return atoms.get_magnetic_moment()
+
+    elif name == 'magmoms':
+        return atoms.get_magnetic_moments()
+
+    elif name == 'charges':
+        return atoms.get_charges()
+
+    elif name == 'free_energy':
+        return atoms.get_potential_energy(force_consistent=True)
+    else:
+        raise NotImplementedError
 
 Vasp.get_property = get_property
 
+# implemented_properties = ['energy', 'forces', 'stress', 'dipole',
+#                           'charges', 'magmom', 'magmoms']
 
-def attach_results(self):
-    '''
-    Attaches values of the main properties to
-    self.results
-    '''
+# Vasp.implemented_properties = implemented_properties
 
-    atoms = self.get_atoms()
-    results = {}
-    results['energy'] = atoms.get_potential_energy()
-    results['forces'] = atoms.get_forces()
-    self.results = results
 
-Vasp.attach_results = attach_results
+# def get_property(self, name, atoms=None, allow_calculation=False):
+#     if name not in self.implemented_properties:
+#         raise NotImplementedError
+
+#     if atoms is None:
+#         atoms = self.atoms
+#         system_changes = []
+#     else:
+#         system_changes = self.check_state(atoms)
+#         if system_changes:
+#             # self.reset()
+#             # Vasp does not have a reset. Silently continue here...
+#             pass
+
+#     if name not in self.results:
+#         return None
+#         # if not allow_calculation:
+#         #    return None
+#         # We don't want to calculate things here...
+#         # try:
+#         #    self.calculate(atoms, [name], system_changes)
+#         # except Exception:
+#         #    self.reset()
+#         #    raise
+
+#     if name == 'magmom' and 'magmom' not in self.results:
+#         return 0.0
+
+#     if name == 'magmoms' and 'magmoms' not in self.results:
+#         return np.zeros(len(atoms))
+
+#     result = self.results[name]
+#     if isinstance(result, np.ndarray):
+#         result = result.copy()
+#     return result
+
+# Vasp.get_property = get_property
+
+
+# def attach_results(self):
+#     '''
+#     Attaches values of the main properties to
+#     self.results
+#     '''
+
+#     atoms = self.get_atoms()
+#     results = {}
+#     results['energy'] = atoms.get_potential_energy()
+#     results['forces'] = atoms.get_forces()
+#     self.results = results
+
+# Vasp.attach_results = attach_results

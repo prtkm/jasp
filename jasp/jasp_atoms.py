@@ -94,33 +94,33 @@ def attach_charges(self, fileobj='ACF.dat', displacement=1e-4):
     Does not require the atom positions to be in Bohr and references
     the charge to the ZVAL in the POTCAR
     '''
-    
+
     calc = self.get_calculator()
 
     # Get the sorting and resorting lists
     sort = calc.sort
-    resort = calc.resort    
-    
+    resort = calc.resort
+
     if isinstance(fileobj, str):
         fileobj = open(fileobj)
         f_open = True
-                
+
     # First get a dictionary of ZVALS from the pseudopotentials
     LOP = calc.get_pseudopotentials()
     ppp = os.environ['VASP_PP_PATH']
-    
+
     zval = {}
     for sym, ppath, hash in LOP:
         fullpath = ppp + ppath
         z = get_ZVAL(fullpath)
         zval[sym] = z
 
-    
+
     # Get sorted symbols and positions according to POSCAR and ACF.dat
     symbols = np.array(self.get_chemical_symbols())[sort]
     positions = self.get_positions()[sort]
 
-    
+
     charges = []
     sep = '---------------'
     i = 0 # Counter for the lines
@@ -152,10 +152,10 @@ def attach_charges(self, fileobj='ACF.dat', displacement=1e-4):
                 if len(words) != 6:
                     raise IOError('Number of columns in ACF file incorrect!\n'
                                   'Check that Bader program version >= 0.25')
-                                
+
             sym = symbols[int(words[0]) - 1]
             charges.append(zval[sym] - float(words[j]))
-            
+
             if displacement is not None:
                 # check if the atom positions match
                 xyz = np.array([float(w) for w in words[1:4]])
@@ -169,7 +169,7 @@ def attach_charges(self, fileobj='ACF.dat', displacement=1e-4):
     charges = np.array(charges)[resort]
     for atom in self:
         atom.charge = charges[atom.index]
-        
+
 Atoms.attach_charges = attach_charges
 
 if __name__ == '__main__':

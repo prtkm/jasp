@@ -68,7 +68,7 @@ def calculation_is_ok(jobid=None):
     output += ['Vasp calculation from \n {0}\n'.format(os.getcwd())]    
     if jobid is not None:
         for f in os.listdir('.'):
-            if 'o{0}'.format(jobid) in f:
+            if '.o{0}'.format(jobid) in f:
                 with open(f) as outputfile:
                     output += ['joboutput file: {0}'.format(jobid),
                               '\n' + '=' * 66 + '\n',
@@ -142,8 +142,12 @@ read. we only care if the number or types of atoms changed.
         raise Exception('Incompatible atoms.\n'
                         '{0} contains {1}'
                         ' but you passed {2}, which is not '
-                        'compatible'.format(os.getcwd(),
-                                            a1, a2))
+                        'compatible \n'
+                        'Chemical symbols 0: {3}'
+                        'Chemical symbols 1: {4}'.format(os.getcwd(),
+                                                         a1, a2,
+                                                         a1.get_chemical_symbols(),
+                                                         a2.get_chemical_symbols()))
 
 
 def Jasp(debug=None,
@@ -230,7 +234,7 @@ def Jasp(debug=None,
         if atoms is not None:
             import ase.io
             try:
-                atoms0 = ase.io.read('POSCAR')
+                atoms0 = ase.io.read('POSCAR', format='vasp')[calc.resort]
                 compatible_atoms_p(atoms0, atoms)
                 atoms.calc = calc
             except IOError:
